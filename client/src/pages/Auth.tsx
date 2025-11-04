@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,6 +103,14 @@ const Auth = () => {
           <CardDescription>Your trusted source for organic groceries</CardDescription>
         </CardHeader>
         <CardContent>
+          {!isSupabaseEnabled ? (
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                Authentication is currently disabled in this deployment.
+              </p>
+              <Button onClick={() => navigate("/")} className="w-full">Go Back Home</Button>
+            </div>
+          ) : (
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -183,6 +191,7 @@ const Auth = () => {
               </form>
             </TabsContent>
           </Tabs>
+          )}
         </CardContent>
       </Card>
     </div>
