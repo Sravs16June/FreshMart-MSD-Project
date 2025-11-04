@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { products } from "@/data/products";
+import { products as localProducts } from "@/data/products";
 import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/contexts/CartContext";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, SlidersHorizontal, Camera, Mic, MicOff, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { getProducts } from "@/lib/api";
+import type { Product as LocalProduct } from "@/data/products";
 
 const Shop = () => {
   const { addToCart } = useCart();
@@ -137,9 +140,32 @@ const Shop = () => {
     }
   };
 
-  const categories = ["All", ...Array.from(new Set(products.map((p) => p.category)))];
+  const { data: apiProducts, isLoading, isError } = useQuery({
+    queryKey: ["products"],
+    queryFn: getProducts,
+    staleTime: 60_000,
+  });
 
-  let filteredProducts = products.filter((product) => {
+  // Map API products (server schema) to local Product shape expected by UI
+  const mapApiToLocal = (p: any): LocalProduct => ({
+    id: p._id || p.id || String(p.name),
+    name: p.name,
+    description: p.description || "",
+    price: Number(p.price) || 0,
+    unit: p.unit || "kg",
+    category: p.category || "General",
+    image: p.imageUrl || "/placeholder.svg",
+    inStock: typeof p.inStock === "boolean" ? p.inStock : true,
+    discount: p.discount ?? undefined,
+  });
+
+  const sourceProducts: LocalProduct[] = Array.isArray(apiProducts) && apiProducts.length > 0
+    ? apiProducts.map((product) => ({ ...product, ...mapApiToLocal(product) }))
+    : localProducts;
+
+  const categories = ["All", ...Array.from(new Set(sourceProducts.map((p) => p.category)))];
+
+  let filteredProducts = sourceProducts.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === "All" || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
@@ -159,6 +185,13 @@ const Shop = () => {
       <div className="container mx-auto px-4 sm:px-6">
         <h1 className="text-3xl sm:text-4xl font-bold mb-2">Shop All Products</h1>
         <p className="text-muted-foreground mb-8">Discover our full range of fresh, organic groceries</p>
+
+        {isLoading && (
+          <div className="text-sm text-muted-foreground mb-4">Loading products from server...</div>
+        )}
+        {isError && (
+          <div className="text-sm text-muted-foreground mb-4">Using local demo products (API unavailable)</div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-col lg:flex-row gap-4 mb-8">
