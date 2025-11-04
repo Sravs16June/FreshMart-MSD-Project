@@ -26,6 +26,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const generateId = () => {
+  const g: any = (globalThis as any);
+  if (g && g.crypto && typeof g.crypto.randomUUID === 'function') {
+    return g.crypto.randomUUID();
+    }
+  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 const Cart = () => {
   const navigate = useNavigate();
   const { cartItems, updateQuantity, removeFromCart, total, clearCart } = useCart();
@@ -128,7 +136,7 @@ const Cart = () => {
     try {
       // Save order locally for demo
       const order = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         user_id: user.id,
         full_name: formData.fullName,
         address: formData.address,

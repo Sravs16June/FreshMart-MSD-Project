@@ -10,6 +10,14 @@ import { Loader2, ShoppingBag } from "lucide-react";
 
 type LocalUser = { id: string; name: string; email: string; password: string };
 
+const generateId = () => {
+  const g: any = (globalThis as any);
+  if (g && g.crypto && typeof g.crypto.randomUUID === 'function') {
+    return g.crypto.randomUUID();
+  }
+  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -32,7 +40,7 @@ const Auth = () => {
       const users: LocalUser[] = raw ? JSON.parse(raw) : [];
       const exists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
       if (exists) throw new Error('Email already registered');
-      const user: LocalUser = { id: crypto.randomUUID(), name, email, password };
+      const user: LocalUser = { id: generateId(), name, email, password };
       users.push(user);
       localStorage.setItem('ls_users', JSON.stringify(users));
       const publicUser = { id: user.id, name: user.name, email: user.email };
