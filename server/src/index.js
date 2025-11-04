@@ -7,14 +7,22 @@ import productsRouter from './routes/products.js';
 
 const app = express();
 
-app.use(cors({
-  origin: [
-    'http://localhost:5173',           // Vite local
-    'http://localhost:8080',           // Vite alt port
-    'https://your-app.vercel.app'      // replace with your Vercel domain
-  ],
-  credentials: true
-}));
+const corsOptions = {
+  origin: (origin, callback) => {
+    const allowList = [
+      'http://localhost:5173',
+      'http://localhost:8080',
+    ];
+    const isVercel = typeof origin === 'string' && origin.endsWith('.vercel.app');
+    if (!origin || allowList.includes(origin) || isVercel) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 
