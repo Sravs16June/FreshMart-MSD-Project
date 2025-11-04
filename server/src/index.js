@@ -7,8 +7,6 @@ import productsRouter from './routes/products.js';
 import authRouter from './routes/auth.js';
 import aiRouter from './routes/ai.js';
 import adminRouter from './routes/admin.js';
-import { Product } from './models/Product.js';
-import { catalog } from './data/catalog.js';
 
 const app = express();
 
@@ -47,15 +45,6 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/freshmart'
 
 async function start() {
   await connectDB(MONGO_URI);
-  try {
-    const count = await Product.countDocuments();
-    if (count === 0) {
-      const inserted = await Product.insertMany(catalog);
-      console.log(`Seeded ${inserted.length} products from catalog.`);
-    }
-  } catch (e) {
-    console.error('Seeding check failed:', e);
-  }
   app.listen(PORT, () => console.log(`API server listening on http://localhost:${PORT}`));
 }
 
