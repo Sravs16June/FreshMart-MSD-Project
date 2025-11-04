@@ -33,10 +33,33 @@ const Recipes = () => {
   const handleCameraCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    toast({
-      title: "Feature not available",
-      description: "Image ingredient analysis will be added soon.",
-    });
+    toast({ title: "Processing image...", description: "Analyzing ingredients from image" });
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Image = reader.result as string;
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/ai/analyze-ingredients-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64Image }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || 'AI error');
+          if (json?.ingredients) {
+            setIngredients((prev) => prev ? `${prev}, ${json.ingredients}` : json.ingredients);
+            toast({ title: 'Ingredients detected!', description: `Found: ${json.ingredients}` });
+          } else {
+            throw new Error('Could not detect ingredients');
+          }
+        } catch (err: any) {
+          toast({ title: 'Error', description: err.message || 'Failed to analyze image', variant: 'destructive' });
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to analyze image', variant: 'destructive' });
+    }
   };
 
   const generateRecipe = async () => {

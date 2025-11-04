@@ -119,23 +119,24 @@ const Shop = () => {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64Image = reader.result as string;
-        
-        // Call AI to analyze the image
-        const { data, error } = await supabase.functions.invoke('analyze-product-image', {
-          body: { image: base64Image }
-        });
-
-        if (error) throw error;
-
-        if (data?.productName) {
-          setSearchTerm(data.productName);
-          setIsVisualSearchOpen(false);
-          toast({
-            title: "Visual search complete!",
-            description: `Found products matching: ${data.productName}`,
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/ai/analyze-product-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64Image }),
           });
-        } else {
-          throw new Error("Could not identify product");
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error || 'AI error');
+          if (json?.productName) {
+            setSearchTerm(json.productName);
+            setIsVisualSearchOpen(false);
+            toast({ title: 'Visual search complete!', description: `Found products matching: ${json.productName}` });
+          } else {
+            throw new Error('Could not identify product');
+          }
+        } catch (err: any) {
+          toast({ title: 'Error', description: err.message || 'Failed to analyze image', variant: 'destructive' });
+          setIsVisualSearchOpen(false);
         }
       };
       reader.readAsDataURL(file);

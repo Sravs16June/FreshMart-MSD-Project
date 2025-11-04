@@ -52,4 +52,87 @@ Make it practical and appetizing.`;
   }
 });
 
+router.post('/analyze-ingredients-image', async (req, res) => {
+  try {
+    const { image } = req.body || {};
+    if (!image) return res.status(400).json({ error: 'image (base64 or URL) is required' });
+
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY not configured on server' });
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Identify all visible food ingredients. Return a comma-separated list in lowercase (e.g., "chicken breast, tomatoes, garlic, olive oil, basil").' },
+              { type: 'image_url', image_url: { url: image } },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      return res.status(500).json({ error: `AI error: ${response.status} ${text}` });
+    }
+    const data = await response.json();
+    const ingredients = data.choices?.[0]?.message?.content?.trim().toLowerCase() || '';
+    return res.json({ ingredients });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/analyze-product-image', async (req, res) => {
+  try {
+    const { image } = req.body || {};
+    if (!image) return res.status(400).json({ error: 'image (base64 or URL) is required' });
+
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    if (!OPENAI_API_KEY) return res.status(500).json({ error: 'OPENAI_API_KEY not configured on server' });
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Identify the main grocery product name visible in this image. Return only the product name text.' },
+              { type: 'image_url', image_url: { url: image } },
+            ],
+          },
+        ],
+        temperature: 0.2,
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      return res.status(500).json({ error: `AI error: ${response.status} ${text}` });
+    }
+    const data = await response.json();
+    const productName = data.choices?.[0]?.message?.content?.trim() || '';
+    return res.json({ productName });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;
