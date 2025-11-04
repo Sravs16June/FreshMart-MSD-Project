@@ -15,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,21 +48,14 @@ const Cart = () => {
   });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+    const saved = localStorage.getItem('user');
+    setUser(saved ? JSON.parse(saved) : null);
+    const handler = () => {
+      const s = localStorage.getItem('user');
+      setUser(s ? JSON.parse(s) : null);
     };
-    checkAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    window.addEventListener('auth-changed', handler);
+    return () => window.removeEventListener('auth-changed', handler);
   }, []);
 
   const validateForm = () => {
@@ -134,7 +126,9 @@ const Cart = () => {
     }
 
     try {
-      const { error } = await supabase.from("orders").insert({
+      // Save order locally for demo
+      const order = {
+        id: crypto.randomUUID(),
         user_id: user.id,
         full_name: formData.fullName,
         address: formData.address,
@@ -142,11 +136,14 @@ const Cart = () => {
         pin_code: formData.pinCode,
         phone: formData.phone,
         items: JSON.parse(JSON.stringify(cartItems)),
-        total: total,
-        status: "pending",
-      });
-
-      if (error) throw error;
+        total,
+        status: "placed",
+        created_at: new Date().toISOString(),
+      };
+      const raw = localStorage.getItem('ls_orders');
+      const orders = raw ? JSON.parse(raw) : [];
+      orders.push(order);
+      localStorage.setItem('ls_orders', JSON.stringify(orders));
 
       toast.success("Order placed successfully!");
       clearCart();
@@ -158,7 +155,7 @@ const Cart = () => {
         pinCode: "",
         phone: "",
       });
-      navigate("/profile");
+      navigate("/orders");
     } catch (error) {
       console.error("Error placing order:", error);
       toast.error("Failed to place order");

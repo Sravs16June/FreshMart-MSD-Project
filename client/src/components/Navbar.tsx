@@ -40,6 +40,7 @@ const Navbar = () => {
     { path: "/", icon: Home, label: "Home" },
     { path: "/shop", icon: Store, label: "Shop" },
     { path: "/recipes", icon: ChefHat, label: "Recipes" },
+    { path: "/orders", icon: Package, label: "Orders" },
     { path: "/profile", icon: User, label: "Profile" },
     { path: "/cart", icon: ShoppingCart, label: "Cart" },
   ];
