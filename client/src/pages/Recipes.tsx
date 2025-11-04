@@ -6,7 +6,6 @@ import { ChefHat, Sparkles, Loader2, Mic, MicOff, Camera } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecognition } from "@/hooks/useVoiceRecognition";
-import { generateRecipe as generateRecipeApi } from "@/lib/api";
 
 const Recipes = () => {
   const { toast } = useToast();
@@ -33,54 +32,25 @@ const Recipes = () => {
   const handleCameraCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    toast({ title: "Processing image...", description: "Analyzing ingredients from image" });
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Image = reader.result as string;
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/ai/analyze-ingredients-image`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64Image }),
-          });
-          const json = await res.json();
-          if (!res.ok) throw new Error(json.error || 'AI error');
-          if (json?.ingredients) {
-            setIngredients((prev) => prev ? `${prev}, ${json.ingredients}` : json.ingredients);
-            toast({ title: 'Ingredients detected!', description: `Found: ${json.ingredients}` });
-          } else {
-            throw new Error('Could not detect ingredients');
-          }
-        } catch (err: any) {
-          toast({ title: 'Error', description: err.message || 'Failed to analyze image', variant: 'destructive' });
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to analyze image', variant: 'destructive' });
-    }
+    toast({ title: "Feature disabled", description: "AI ingredient analysis is currently disabled." });
   };
 
   const generateRecipe = async () => {
     if (!ingredients.trim()) return;
-
     setLoading(true);
     setRecipe("");
-
     try {
-      const { recipe } = await generateRecipeApi(ingredients.trim());
-      setRecipe(recipe);
-      toast({
-        title: "Recipe generated!",
-        description: "Your custom recipe is ready.",
+      const res = await fetch(`/api/generate-recipe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients: ingredients.trim() }),
       });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to generate');
+      setRecipe(json.recipe || '');
+      toast({ title: 'Recipe generated!', description: 'Your custom recipe is ready.' });
     } catch (error: any) {
-      toast({
-        title: "Failed to generate recipe",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: 'Failed to generate recipe', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }

@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShoppingBag } from "lucide-react";
-import { authLogin, authRegister, type AuthResponse } from "@/lib/api";
+
+type LocalUser = { id: string; name: string; email: string; password: string };
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -27,10 +28,18 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const res: AuthResponse = await authRegister(name, email, password);
-      localStorage.setItem('token', res.token);
-      localStorage.setItem('user', JSON.stringify(res.user));
-      toast({ title: "Account created!", description: `Welcome, ${res.user.name}.` });
+      const raw = localStorage.getItem('ls_users');
+      const users: LocalUser[] = raw ? JSON.parse(raw) : [];
+      const exists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
+      if (exists) throw new Error('Email already registered');
+      const user: LocalUser = { id: crypto.randomUUID(), name, email, password };
+      users.push(user);
+      localStorage.setItem('ls_users', JSON.stringify(users));
+      const publicUser = { id: user.id, name: user.name, email: user.email };
+      localStorage.setItem('token', `local_${user.id}`);
+      localStorage.setItem('user', JSON.stringify(publicUser));
+      window.dispatchEvent(new Event('auth-changed'));
+      toast({ title: "Account created!", description: `Welcome, ${user.name}.` });
       navigate('/');
     } catch (error: any) {
       toast({
@@ -48,10 +57,15 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const res: AuthResponse = await authLogin(email, password);
-      localStorage.setItem('token', res.token);
-      localStorage.setItem('user', JSON.stringify(res.user));
-      toast({ title: "Welcome back!", description: `Signed in as ${res.user.email}.` });
+      const raw = localStorage.getItem('ls_users');
+      const users: LocalUser[] = raw ? JSON.parse(raw) : [];
+      const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+      if (!user) throw new Error('Invalid credentials');
+      const publicUser = { id: user.id, name: user.name, email: user.email };
+      localStorage.setItem('token', `local_${user.id}`);
+      localStorage.setItem('user', JSON.stringify(publicUser));
+      window.dispatchEvent(new Event('auth-changed'));
+      toast({ title: "Welcome back!", description: `Signed in as ${user.email}.` });
       navigate('/');
     } catch (error: any) {
       toast({

@@ -18,10 +18,20 @@ const Navbar = () => {
     setUser(saved ? JSON.parse(saved) : null);
   }, [location.pathname]);
 
+  useEffect(() => {
+    const handler = () => {
+      const saved = localStorage.getItem('user');
+      setUser(saved ? JSON.parse(saved) : null);
+    };
+    window.addEventListener('auth-changed', handler);
+    return () => window.removeEventListener('auth-changed', handler);
+  }, []);
+
   const handleSignOut = async () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    window.dispatchEvent(new Event('auth-changed'));
     toast({ title: "Signed out" });
     navigate("/");
   };
@@ -77,24 +87,16 @@ const Navbar = () => {
                 </Link>
               );
             })}
-            
-            {user ? (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleSignOut}
-                  className="gap-2 ml-2"
-                >
-                  <LogOut className="h-5 w-5" />
-                  <span className="hidden sm:inline text-sm">Sign Out</span>
-                </Button>
-              ) : (
-                <Link to="/auth">
-                  <Button variant="ghost" size="sm" className="gap-2 ml-2">
-                    <LogIn className="h-5 w-5" />
-                    <span className="hidden sm:inline text-sm">Sign In</span>
-                  </Button>
-                </Link>
+            {user && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleSignOut}
+                className="gap-2 ml-2"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="hidden sm:inline text-sm">Sign Out</span>
+              </Button>
             )}
           </div>
         </div>
