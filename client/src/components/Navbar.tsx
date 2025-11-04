@@ -34,6 +34,10 @@ const Navbar = () => {
     { path: "/cart", icon: ShoppingCart, label: "Cart" },
   ];
 
+  const displayItems = user
+    ? navItems
+    : [...navItems, { path: "/auth", icon: LogIn, label: "Sign In" }];
+
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -46,7 +50,7 @@ const Navbar = () => {
           </Link>
 
           <div className="flex items-center gap-2">
-            {navItems.map((item) => {
+            {displayItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               const isCart = item.path === "/cart";
