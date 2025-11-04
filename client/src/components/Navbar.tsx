@@ -3,7 +3,6 @@ import { ShoppingCart, Home, Store, ChefHat, User, Package, LogIn, LogOut } from
 import { useCart } from "@/contexts/CartContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
@@ -15,23 +14,15 @@ const Navbar = () => {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    const saved = localStorage.getItem('user');
+    setUser(saved ? JSON.parse(saved) : null);
+  }, [location.pathname]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast({
-      title: "Signed out",
-      description: "You've been successfully signed out.",
-    });
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    toast({ title: "Signed out" });
     navigate("/");
   };
 
@@ -83,8 +74,7 @@ const Navbar = () => {
               );
             })}
             
-            {isSupabaseEnabled && (
-              user ? (
+            {user ? (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -101,7 +91,6 @@ const Navbar = () => {
                     <span className="hidden sm:inline text-sm">Sign In</span>
                   </Button>
                 </Link>
-              )
             )}
           </div>
         </div>

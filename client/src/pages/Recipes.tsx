@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ChefHat, Sparkles, Loader2, Mic, MicOff, Camera } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecognition } from "@/hooks/useVoiceRecognition";
+import { generateRecipe as generateRecipeApi } from "@/lib/api";
 
 const Recipes = () => {
   const { toast } = useToast();
@@ -33,83 +33,21 @@ const Recipes = () => {
   const handleCameraCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    if (!isSupabaseEnabled) {
-      toast({
-        title: "Feature unavailable",
-        description: "AI image analysis requires Supabase to be configured.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     toast({
-      title: "Processing image...",
-      description: "Analyzing ingredients from image",
+      title: "Feature not available",
+      description: "Image ingredient analysis will be added soon.",
     });
-
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Image = reader.result as string;
-        
-        const { data, error } = await supabase.functions.invoke('analyze-ingredients-image', {
-          body: { image: base64Image }
-        });
-
-        if (error) throw error;
-
-        if (data?.ingredients) {
-          setIngredients((prev) => prev ? `${prev}, ${data.ingredients}` : data.ingredients);
-          toast({
-            title: "Ingredients detected!",
-            description: `Found: ${data.ingredients}`,
-          });
-        } else {
-          throw new Error("Could not detect ingredients");
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to analyze image",
-        variant: "destructive",
-      });
-    }
   };
 
   const generateRecipe = async () => {
     if (!ingredients.trim()) return;
-    if (!isSupabaseEnabled) {
-      toast({
-        title: "Feature unavailable",
-        description: "AI recipe generation requires Supabase to be configured.",
-        variant: "destructive",
-      });
-      return;
-    }
 
     setLoading(true);
     setRecipe("");
 
     try {
-      const { data, error } = await supabase.functions.invoke('generate-recipe', {
-        body: { ingredients: ingredients.trim() }
-      });
-
-      if (error) throw error;
-
-      if (data?.error) {
-        toast({
-          title: "Error",
-          description: data.error,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setRecipe(data.recipe);
+      const { recipe } = await generateRecipeApi(ingredients.trim());
+      setRecipe(recipe);
       toast({
         title: "Recipe generated!",
         description: "Your custom recipe is ready.",

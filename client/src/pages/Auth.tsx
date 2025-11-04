@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ShoppingBag } from "lucide-react";
+import { authLogin, authRegister, type AuthResponse } from "@/lib/api";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -18,20 +18,8 @@ const Auth = () => {
   const [name, setName] = useState("");
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    const token = localStorage.getItem('token');
+    if (token) navigate('/')
   }, [navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -39,21 +27,11 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { name },
-          emailRedirectTo: `${window.location.origin}/`
-        }
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Account created!",
-        description: "Welcome to FreshMart. You're now logged in.",
-      });
+      const res: AuthResponse = await authRegister(name, email, password);
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('user', JSON.stringify(res.user));
+      toast({ title: "Account created!", description: `Welcome, ${res.user.name}.` });
+      navigate('/');
     } catch (error: any) {
       toast({
         title: "Sign up failed",
@@ -70,17 +48,11 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Welcome back!",
-        description: "You've successfully signed in.",
-      });
+      const res: AuthResponse = await authLogin(email, password);
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('user', JSON.stringify(res.user));
+      toast({ title: "Welcome back!", description: `Signed in as ${res.user.email}.` });
+      navigate('/');
     } catch (error: any) {
       toast({
         title: "Sign in failed",
@@ -103,14 +75,6 @@ const Auth = () => {
           <CardDescription>Your trusted source for organic groceries</CardDescription>
         </CardHeader>
         <CardContent>
-          {!isSupabaseEnabled ? (
-            <div className="space-y-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                Authentication is currently disabled in this deployment.
-              </p>
-              <Button onClick={() => navigate("/")} className="w-full">Go Back Home</Button>
-            </div>
-          ) : (
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
@@ -191,7 +155,6 @@ const Auth = () => {
               </form>
             </TabsContent>
           </Tabs>
-          )}
         </CardContent>
       </Card>
     </div>

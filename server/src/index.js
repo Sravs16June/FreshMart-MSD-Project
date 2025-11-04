@@ -4,6 +4,8 @@ import cors from 'cors';
 import morgan from 'morgan';
 import { connectDB } from './config/db.js';
 import productsRouter from './routes/products.js';
+import authRouter from './routes/auth.js';
+import aiRouter from './routes/ai.js';
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.get('/health', (_req, res) => {
 
 // API routes
 app.use('/api/products', productsRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/ai', aiRouter);
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/freshmart';
