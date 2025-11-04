@@ -3,7 +3,7 @@ import { ShoppingCart, Home, Store, ChefHat, User, Package, LogIn, LogOut } from
 import { useCart } from "@/contexts/CartContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
@@ -83,23 +83,25 @@ const Navbar = () => {
               );
             })}
             
-            {user ? (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleSignOut}
-                className="gap-2 ml-2"
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="hidden sm:inline text-sm">Sign Out</span>
-              </Button>
-            ) : (
-              <Link to="/auth">
-                <Button variant="ghost" size="sm" className="gap-2 ml-2">
-                  <LogIn className="h-5 w-5" />
-                  <span className="hidden sm:inline text-sm">Sign In</span>
+            {isSupabaseEnabled && (
+              user ? (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleSignOut}
+                  className="gap-2 ml-2"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="hidden sm:inline text-sm">Sign Out</span>
                 </Button>
-              </Link>
+              ) : (
+                <Link to="/auth">
+                  <Button variant="ghost" size="sm" className="gap-2 ml-2">
+                    <LogIn className="h-5 w-5" />
+                    <span className="hidden sm:inline text-sm">Sign In</span>
+                  </Button>
+                </Link>
+              )
             )}
           </div>
         </div>

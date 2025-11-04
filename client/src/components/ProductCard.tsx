@@ -6,7 +6,7 @@ import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Product } from "@/data/products";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 
 interface ProductCardProps {
   product: Product;
@@ -21,14 +21,15 @@ const ProductCard = ({ product }: ProductCardProps) => {
     : product.price;
 
   const handleAddToCart = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      toast.error("Please sign in to add items to cart");
-      navigate("/auth");
-      return;
+    if (isSupabaseEnabled) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) {
+        toast.error("Please sign in to add items to cart");
+        navigate("/auth");
+        return;
+      }
     }
 
     addToCart(product);
