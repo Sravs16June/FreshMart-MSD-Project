@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, Phone, MapPin, Package, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
 interface UserProfile {
@@ -56,123 +55,65 @@ const Profile = () => {
   const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await loadProfile(session.user.id);
-        await loadOrders(session.user.id);
+    const saved = localStorage.getItem('user');
+    const u = saved ? JSON.parse(saved) : null;
+    setUser(u);
+    if (u?.id) {
+      loadProfile(u.id);
+      loadOrders(u.id);
+    }
+    setLoading(false);
+
+    const handler = () => {
+      const s = localStorage.getItem('user');
+      const nu = s ? JSON.parse(s) : null;
+      setUser(nu);
+      if (nu?.id) {
+        loadProfile(nu.id);
+        loadOrders(nu.id);
       }
-      setLoading(false);
     };
-    getUser();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
-        loadOrders(session.user.id);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    window.addEventListener('auth-changed', handler);
+    return () => window.removeEventListener('auth-changed', handler);
   }, []);
 
-  const loadProfile = async (userId: string) => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userEmail = sessionData.session?.user?.email || "";
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error loading profile:', error);
-      toast.error("Failed to load profile");
-      return;
-    }
-
-    if (data) {
-      const profileData = {
-        name: data.full_name || "",
-        email: userEmail,
-        phone: data.phone || "",
-        address: data.address || "",
-      };
-      setProfile(profileData);
-      setEditedProfile(profileData);
-      setAvatarUrl(data.avatar_url);
-    } else {
-      // Create initial profile if it doesn't exist
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          full_name: "",
-          phone: "",
-          address: "",
-        });
-
-      if (!insertError) {
-        const initialProfile = {
-          name: "",
-          email: userEmail,
-          phone: "",
-          address: "",
-        };
-        setProfile(initialProfile);
-        setEditedProfile(initialProfile);
-      }
-    }
+  const loadProfile = async (_userId: string) => {
+    const saved = localStorage.getItem('user');
+    const u = saved ? JSON.parse(saved) : null;
+    const profileData = {
+      name: u?.name || "",
+      email: u?.email || "",
+      phone: u?.phone || "",
+      address: u?.address || "",
+    };
+    setProfile(profileData);
+    setEditedProfile(profileData);
+    setAvatarUrl(u?.avatar_url || null);
   };
 
   const loadOrders = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error loading orders:', error);
-      return;
-    }
-
-    // Parse items from JSON
-    const parsedOrders = (data || []).map(order => ({
-      ...order,
-      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items
-    }));
-
-    setOrders(parsedOrders as Order[]);
+    const raw = localStorage.getItem('ls_orders');
+    const all: Order[] = raw ? JSON.parse(raw) : [];
+    const mine = all
+      .filter(o => o.user_id === userId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setOrders(mine);
   };
 
   const handleSave = async () => {
     if (!user) return;
-
-    const updates = {
-      full_name: editedProfile.name,
+    const saved = localStorage.getItem('user');
+    const u = saved ? JSON.parse(saved) : {};
+    const updated = {
+      ...u,
+      name: editedProfile.name,
+      email: editedProfile.email,
       phone: editedProfile.phone,
       address: editedProfile.address,
     };
-
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        ...updates
-      }, { 
-        onConflict: 'id' 
-      });
-
-    if (error) {
-      toast.error("Failed to update profile");
-      console.error('Error updating profile:', error);
-      return;
-    }
-
+    localStorage.setItem('user', JSON.stringify(updated));
+    window.dispatchEvent(new Event('auth-changed'));
+    setUser(updated);
     setProfile(editedProfile);
     setIsEditing(false);
     toast.success("Profile updated successfully!");
@@ -183,44 +124,21 @@ const Profile = () => {
       toast.error("You must be logged in to cancel an order");
       return;
     }
-
-    try {
-      const { data: orderData, error: fetchError } = await supabase
-        .from('orders')
-        .select('status')
-        .eq('id', orderId)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
-
-      if (!orderData) {
-        toast.error("Order not found");
-        return;
-      }
-
-      if (orderData.status !== 'pending') {
-        toast.error("Only pending orders can be cancelled");
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'cancelled',
-          cancelled_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .eq('user_id', user.id);
-
-      if (updateError) throw updateError;
-
-      toast.success("Order cancelled successfully");
-      await loadOrders(user.id);
-    } catch (error) {
-      console.error('Error cancelling order:', error);
-      toast.error("Failed to cancel order");
+    const raw = localStorage.getItem('ls_orders');
+    const all: Order[] = raw ? JSON.parse(raw) : [];
+    const target = all.find(o => o.id === orderId && o.user_id === user.id);
+    if (!target) {
+      toast.error("Order not found");
+      return;
     }
+    if (target.status !== 'pending' && target.status !== 'placed') {
+      toast.error("Only pending orders can be cancelled");
+      return;
+    }
+    const updated = all.map(o => o.id === orderId ? { ...o, status: 'cancelled', cancelled_at: new Date().toISOString() as any } : o);
+    localStorage.setItem('ls_orders', JSON.stringify(updated));
+    toast.success("Order cancelled successfully");
+    await loadOrders(user.id);
   };
 
   const handleCancel = () => {
@@ -228,85 +146,8 @@ const Profile = () => {
     setIsEditing(false);
   };
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || !event.target.files[0] || !user) {
-      toast.error("Please select a file");
-      return;
-    }
-
-    const file = event.target.files[0];
-    
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error("Please upload an image file");
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB");
-      return;
-    }
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `avatar_${Date.now()}.${fileExt}`;
-    const filePath = `${user.id}/${fileName}`;
-
-    setUploading(true);
-
-    try {
-      // Upload new avatar
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: false });
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error(uploadError.message);
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      
-      if (!urlData?.publicUrl) {
-        throw new Error("Failed to get public URL");
-      }
-
-      // Update profile with new avatar URL
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: urlData.publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) {
-        console.error('Profile update error:', updateError);
-        throw new Error(updateError.message);
-      }
-
-      // Delete old avatar if exists
-      if (avatarUrl) {
-        try {
-          const oldPath = avatarUrl.split('/avatars/')[1];
-          if (oldPath) {
-            await supabase.storage.from('avatars').remove([oldPath]);
-          }
-        } catch (deleteError) {
-          console.log('Old avatar deletion failed (non-critical):', deleteError);
-        }
-      }
-
-      setAvatarUrl(urlData.publicUrl);
-      toast.success("Avatar updated successfully!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to upload avatar");
-      console.error('Error uploading avatar:', error);
-    } finally {
-      setUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
+  const handleAvatarUpload = async (_event: React.ChangeEvent<HTMLInputElement>) => {
+    toast.error("Avatar upload is disabled in local mode");
   };
 
   const getInitials = (name: string) => {

@@ -4,6 +4,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingBag, ArrowLeft, MapPinned, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface OrderItem {
   id: number;
@@ -59,6 +70,20 @@ const Orders = () => {
   };
 
   const stageLabels = ["Placed", "Packed", "Out for delivery", "Delivered"];
+
+  const canCancel = (order: Order) => {
+    // allow cancel if not already cancelled and not delivered
+    const delivered = getStage(order.created_at) >= 3;
+    return order.status !== "cancelled" && !delivered;
+  };
+
+  const cancelOrder = (orderId: string) => {
+    const raw = localStorage.getItem('ls_orders');
+    const all: Order[] = raw ? JSON.parse(raw) : [];
+    const updated = all.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o);
+    localStorage.setItem('ls_orders', JSON.stringify(updated));
+    setOrders(updated);
+  };
 
   if (!user) {
     return (
@@ -116,6 +141,25 @@ const Orders = () => {
                       {new Date(order.created_at).toLocaleString()}
                     </div>
                     <div className="text-xl font-bold">₹{order.total.toFixed(2)}</div>
+                    {canCancel(order) && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">Cancel Order</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action will mark the order as cancelled. You can place a new order anytime.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep Order</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => cancelOrder(order.id)}>Cancel Order</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
                   </div>
                 </div>
 
@@ -150,10 +194,11 @@ const Orders = () => {
                 <div className="mt-6">
                   <Button
                     variant="outline"
+                    disabled={order.status === 'cancelled' || getStage(order.created_at) >= 3}
                     onClick={() => setExpanded((e) => ({ ...e, [order.id]: !e[order.id] }))}
                   >
                     <MapPinned className="mr-2 h-4 w-4" />
-                    Track Order
+                    {order.status === 'cancelled' ? 'Order Cancelled' : 'Track Order'}
                     {expanded[order.id] ? (
                       <ChevronUp className="ml-2 h-4 w-4" />
                     ) : (
