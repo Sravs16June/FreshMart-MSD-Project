@@ -2,16 +2,44 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+
+export const isSupabaseEnabled = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 
 // Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+// import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+// When env vars are present, create a real client
+let realClient: ReturnType<typeof createClient<Database>> | null = null;
+if (isSupabaseEnabled) {
+  realClient = createClient<Database>(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
+}
+
+// Fallback stub to avoid runtime errors when Supabase is not configured
+const stub = {
   auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+    async getSession() {
+      return { data: { session: null }, error: null } as any;
+    },
+    onAuthStateChange(_cb: any) {
+      return { data: { subscription: { unsubscribe() {} } } } as any;
+    },
+    async signOut() {
+      return { error: null } as any;
+    },
+  },
+  functions: {
+    async invoke(_name: string, _opts?: any) {
+      return { data: null, error: new Error('Supabase functions are disabled') } as any;
+    },
+  },
+} as const;
+
+export const supabase = (realClient ?? (stub as any));
