@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, SlidersHorizontal, Camera, Mic, MicOff, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getProducts } from "@/lib/api";
 import type { Product as LocalProduct } from "@/data/products";
@@ -99,6 +99,15 @@ const Shop = () => {
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (!isSupabaseEnabled) {
+      toast({
+        title: "Feature unavailable",
+        description: "Visual search requires Supabase to be configured.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     toast({
       title: "Processing image...",

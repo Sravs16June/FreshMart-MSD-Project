@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ChefHat, Sparkles, Loader2, Mic, MicOff, Camera } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, isSupabaseEnabled } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecognition } from "@/hooks/useVoiceRecognition";
 
@@ -33,6 +33,15 @@ const Recipes = () => {
   const handleCameraCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    if (!isSupabaseEnabled) {
+      toast({
+        title: "Feature unavailable",
+        description: "AI image analysis requires Supabase to be configured.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     toast({
       title: "Processing image...",
@@ -72,6 +81,14 @@ const Recipes = () => {
 
   const generateRecipe = async () => {
     if (!ingredients.trim()) return;
+    if (!isSupabaseEnabled) {
+      toast({
+        title: "Feature unavailable",
+        description: "AI recipe generation requires Supabase to be configured.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
     setRecipe("");
